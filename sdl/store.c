@@ -19,6 +19,9 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#if defined(_WIN32)
+#include <direct.h>
+#endif
 #include "machine.h"
 #include <curl/curl.h>
 
@@ -784,8 +787,15 @@ void store_show(struct Store *store, const char *storeFilePath)
     store->selectedCategory = 0;
     store->numEntries = 0;
 
+#if defined(_WIN32)
+    // P_tmpdir is "\\" with MinGW: the temp directory comes from the environment
+    const char *tmp = getenv("TEMP");
+    snprintf(store->cacheDir, FILENAME_MAX, "%s%clowresnx-store%c", tmp ? tmp : ".", PATH_SEPARATOR_CHAR, PATH_SEPARATOR_CHAR);
+    _mkdir(store->cacheDir);
+#else
     snprintf(store->cacheDir, FILENAME_MAX, "%s%clowresnx-store%c", P_tmpdir, PATH_SEPARATOR_CHAR, PATH_SEPARATOR_CHAR);
     mkdir(store->cacheDir, 0755);
+#endif
 
     store_drawCategories(store);
     setMouseEnabled(true);

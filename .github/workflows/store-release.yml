@@ -1,0 +1,77 @@
+name: Store builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish to (empty = artifacts only)
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libcurl4-openssl-dev
+      - name: Build
+        working-directory: platform/Linux
+        run: make -j"$(nproc)"
+      - name: Package
+        run: |
+          mkdir -p dist/LowResNX-store-linux-x86_64
+          cp platform/Linux/output/LowResNX dist/LowResNX-store-linux-x86_64/
+          tar -C dist -czf LowResNX-store-linux-x86_64.tar.gz LowResNX-store-linux-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LowResNX-store-linux-x86_64
+          path: LowResNX-store-linux-x86_64.tar.gz
+      - name: Release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" LowResNX-store-linux-x86_64.tar.gz --clobber -R "${{ github.repository }}"
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            make zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-curl
+      - name: Build
+        run: |
+          inc="-I core -I core/machine -I core/accessories -I core/datamanager -I core/interpreter -I core/libraries -I core/overlay"
+          mkdir -p obj out
+          for f in core/*.c core/*/*.c sdl/*.c; do
+            gcc -c -O2 -w $inc $(sdl2-config --cflags) "$f" -o "obj/$(echo "$f" | tr '/' '_').o" || exit 1
+          done
+          gcc obj/*.o -o out/LowResNX.exe $(sdl2-config --libs) -lcurl -lpthread -lm
+      - name: Package
+        run: |
+          d=LowResNX-store-windows-x86_64
+          mkdir -p "$d"
+          cp out/LowResNX.exe "$d/"
+          ldd out/LowResNX.exe | awk '/mingw64/ {print $3}' | xargs -r -I{} cp {} "$d/"
+          zip -r "$d.zip" "$d"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LowResNX-store-windows-x86_64
+          path: LowResNX-store-windows-x86_64.zip
+      - name: Release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" LowResNX-store-windows-x86_64.zip --clobber -R "${{ github.repository }}"
