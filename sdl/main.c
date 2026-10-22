@@ -118,7 +118,7 @@ int main(int argc, char * argv[])
 {
     memset(&coreInput, 0, sizeof(struct CoreInput));
     
-    settings_init(&settings, mainProgramFilename, argc, argv);
+    settings_init(&settings, mainProgramFilename, argc, (const char **)argv);
     runner_init(&runner);
 #if DEV_MENU
     dev_init(&devMenu, &runner, &settings);
