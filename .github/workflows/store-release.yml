@@ -1,6 +1,8 @@
 name: Store builds
 
 on:
+  push:
+    branches: [store]
   workflow_dispatch:
     inputs:
       tag:
