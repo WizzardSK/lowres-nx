@@ -38,6 +38,14 @@ extern const char dev_characters[];
 #define BASE_URL "https://lowresnx.inutilis.com/"
 #define PARALLEL_FETCHES 10
 
+// The Windows build's libcurl uses OpenSSL, which has no CA certificates of
+// its own there: HTTPS is verified against the ones Windows keeps instead
+#if defined(_WIN32)
+#define STORE_CURL_TLS(c) curl_easy_setopt((c), CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA)
+#else
+#define STORE_CURL_TLS(c) ((void)0)
+#endif
+
 static const char *categoryNames[] = {"GAMES", "ART", "TOOLS", "EXAMPLES"};
 static const char *categorySlugs[] = {"game", "art", "tool", "example"};
 
@@ -90,6 +98,7 @@ static char *http_get(const char *url)
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "LowResNX-Store/1.0");
+    STORE_CURL_TLS(curl);
 
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
@@ -111,6 +120,7 @@ static bool http_download(const char *url, const char *path)
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "LowResNX-Store/1.0");
+    STORE_CURL_TLS(curl);
 
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
@@ -300,6 +310,7 @@ static void store_fetchCategory(struct Store *store, int categoryIndex)
             curl_easy_setopt(pf->curl, CURLOPT_FOLLOWLOCATION, 1L);
             curl_easy_setopt(pf->curl, CURLOPT_TIMEOUT, 15L);
             curl_easy_setopt(pf->curl, CURLOPT_USERAGENT, "LowResNX-Store/1.0");
+            STORE_CURL_TLS(pf->curl);
             curl_multi_add_handle(multi, pf->curl);
             numFetches++;
         }
@@ -653,6 +664,7 @@ static void *preview_thread_func(void *arg)
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "LowResNX-Store/1.0");
+    STORE_CURL_TLS(curl);
 
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
